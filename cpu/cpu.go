@@ -140,12 +140,47 @@ func (cpu *CPU) EmulateCycle() {
 			cpu.pc += 2
 			break
 		case 0x0004:
-			//cpu.regV[uint8(cpu.opcode&0x0F00)] += uint8(cpu.opcode & 0x00FF)
-			//cpu.regV[uint8(cpu.opcode&0x0F00)] = cpu.regV[uint8(cpu.opcode&0x0F00)] & cpu.regV[uint8(cpu.opcode&0x00F0)]
+			if (uint16(cpu.regV[uint8(cpu.opcode&0x0F00)]) + uint16(cpu.regV[uint8(cpu.opcode&0x00F0)])) > 255 {
+				cpu.regV[0xF] = 1
+			} else {
+				cpu.regV[0xF] = 0
+			}
+			cpu.regV[uint8(cpu.opcode&0x0F00)] += cpu.regV[uint8(cpu.opcode&0x00F0)]
 			cpu.pc += 2
 			break
+		case 0x0005:
+			if cpu.regV[uint8(cpu.opcode&0x0F00)] >= cpu.regV[uint8(cpu.opcode&0x00F0)] {
+				cpu.regV[0xF] = 1
+			} else {
+				cpu.regV[0xF] = 0
+			}
+			cpu.regV[uint8(cpu.opcode&0x0F00)] -= cpu.regV[uint8(cpu.opcode&0x00F0)]
+			cpu.pc += 2
+			break
+		case 0x0006:
+			cpu.regV[0xF] = cpu.regV[uint8(cpu.opcode&0x00F0)] & 1
+			cpu.regV[uint8(cpu.opcode&0x00F0)] = cpu.regV[uint8(cpu.opcode&0x00F0)] >> 1
+			cpu.regV[uint8(cpu.opcode&0x0F00)] = cpu.regV[uint8(cpu.opcode&0x00F0)]
+			cpu.pc += 2
+			break
+		case 0x0007:
+			if cpu.regV[uint8(cpu.opcode&0x00F0)] >= cpu.regV[uint8(cpu.opcode&0x0F00)] {
+				cpu.regV[0xF] = 1
+			} else {
+				cpu.regV[0xF] = 0
+			}
+			cpu.regV[uint8(cpu.opcode&0x0F00)] = cpu.regV[uint8(cpu.opcode&0x00F0)] - cpu.regV[uint8(cpu.opcode&0x0F00)]
+			cpu.pc += 2
+			break
+		case 0x000E:
+			cpu.regV[0xF] = cpu.regV[uint8(cpu.opcode&0x00F0)] & 128
+			cpu.regV[uint8(cpu.opcode&0x00F0)] = cpu.regV[uint8(cpu.opcode&0x00F0)] << 1
+			cpu.regV[uint8(cpu.opcode&0x0F00)] = cpu.regV[uint8(cpu.opcode&0x00F0)]
+			cpu.pc += 2
+			break
+		default:
+			fmt.Printf("Unknown opcode [0x8000]: 0x%X\n", cpu.opcode)
 		}
-
 	default:
 		fmt.Printf("Unknown opcode: 0x%X\n", cpu.opcode)
 	}
