@@ -26,8 +26,8 @@ type CPU struct {
 	soundTimer uint8
 	stack      []uint16
 	sp         uint16
-	key        []uint8
-	drawFlag   bool
+	Key        []uint8
+	DrawFlag   bool
 }
 
 //Initialize sets up the initial state of the CPU
@@ -61,13 +61,13 @@ func (cpu *CPU) Initialize() {
 	cpu.soundTimer = 0
 	cpu.stack = make([]uint16, 16)
 	cpu.sp = 0
-	cpu.key = make([]uint8, 16)
+	cpu.Key = make([]uint8, 16)
 	//loadfontset
 	for i := 0; i < 80; i++ {
 		//set font
 		cpu.memory[i] = font[i]
 	}
-	cpu.drawFlag = true
+	cpu.DrawFlag = true
 }
 
 //LoadGame loads the game into memory and reads it
@@ -95,7 +95,7 @@ func (cpu *CPU) EmulateCycle() {
 		case 0x0000:
 			//clear screen
 			cpu.gfx = make([]uint8, 2048)
-			cpu.drawFlag = true
+			cpu.DrawFlag = true
 			cpu.pc += 2
 			break
 		case 0x000E:
@@ -244,20 +244,20 @@ func (cpu *CPU) EmulateCycle() {
 				}
 			}
 		}
-		cpu.drawFlag = true
+		cpu.DrawFlag = true
 		cpu.pc += 2
 		break
 	case 0xE000:
 		switch cpu.opcode & 0x00FF {
 		case 0x009E:
-			if cpu.key[cpu.regV[uint8(cpu.opcode&0x0F00)]] != 0 {
+			if cpu.Key[cpu.regV[uint8(cpu.opcode&0x0F00)]] != 0 {
 				cpu.pc += 4
 			} else {
 				cpu.pc += 2
 			}
 			break
 		case 0x00A1:
-			if cpu.key[cpu.regV[uint8(cpu.opcode&0x0F00)]] == 0 {
+			if cpu.Key[cpu.regV[uint8(cpu.opcode&0x0F00)]] == 0 {
 				cpu.pc += 4
 			} else {
 				cpu.pc += 2
@@ -273,14 +273,14 @@ func (cpu *CPU) EmulateCycle() {
 			cpu.pc += 2
 			break
 		case 0x000A:
-			keyPress := false
+			KeyPress := false
 			for i := 0; i < 16; i++ {
-				if cpu.key[i] != 0 {
+				if cpu.Key[i] != 0 {
 					cpu.regV[uint8(cpu.opcode&0x0F00)] = uint8(i)
-					keyPress = true
+					KeyPress = true
 				}
 			}
-			if keyPress {
+			if KeyPress {
 				cpu.pc += 2
 			}
 
