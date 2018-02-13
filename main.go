@@ -3,25 +3,54 @@ package main
 import (
 	"os"
 
+	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/lasiqueira/chip8/cpu"
 	"github.com/rhencke/glut"
 )
 
 var chip8 = cpu.CPU{}
+var displayWidth = 640
+var displayHeight = 320
 
 func initWindow() {
-	glut.InitWindowSize(640, 320)
+	glut.InitWindowSize(displayWidth, displayHeight)
 	glut.InitWindowPosition(320, 320)
 	glut.CreateWindow("chip8")
 	glut.DisplayFunc(display)
 	glut.IdleFunc(display)
 	glut.KeyboardFunc(keyboardDown)
 	glut.KeyboardUpFunc(keyboardUp)
+	gl.Init()
+}
+func updateQuads() {
+	for y := 0; y < 32; y++ {
+		for x := 0; x < 64; x++ {
+			if chip8.Gfx[(y*64)+x] == 0 {
+				gl.Color3f(0.0, 0.0, 0.0)
+			} else {
+				gl.Color3f(1.0, 1.0, 1.0)
+			}
+			drawPixel(x, y)
+		}
+	}
+}
+func drawPixel(x int, y int) {
+	gl.Begin(gl.QUADS)
+	gl.TexCoord2d(0.0, 0.0)
+	gl.Vertex2d(0.0, 0.0)
+	gl.TexCoord2d(1.0, 0.0)
+	gl.Vertex2d(float64(displayWidth), 0.0)
+	gl.TexCoord2d(1.0, 1.0)
+	gl.Vertex2d(float64(displayWidth), float64(displayHeight))
+	gl.TexCoord2d(0.0, 1.0)
+	gl.Vertex2d(0.0, float64(displayHeight))
+	gl.End()
 }
 func display() {
 	chip8.EmulateCycle()
 	if chip8.DrawFlag {
-
+		gl.Clear(gl.COLOR_BUFFER_BIT)
+		updateQuads()
 		glut.SwapBuffers()
 		chip8.DrawFlag = false
 	}
