@@ -3,8 +3,6 @@ package cpu
 import (
 	"os"
 
-	"encoding/binary"
-
 	"fmt"
 
 	"math/rand"
@@ -21,7 +19,7 @@ type CPU struct {
 	regV       []uint8
 	regI       uint16
 	pc         uint16
-	gfx        []uint8
+	Gfx        []uint8
 	delayTimer uint8
 	soundTimer uint8
 	stack      []uint16
@@ -56,7 +54,7 @@ func (cpu *CPU) Initialize() {
 	cpu.regI = 0
 	cpu.memory = make([]uint8, 4096)
 	cpu.regV = make([]uint8, 16)
-	cpu.gfx = make([]uint8, 2048)
+	cpu.Gfx = make([]uint8, 2048)
 	cpu.delayTimer = 0
 	cpu.soundTimer = 0
 	cpu.stack = make([]uint16, 16)
@@ -72,14 +70,15 @@ func (cpu *CPU) Initialize() {
 
 //LoadGame loads the game into memory and reads it
 func (cpu *CPU) LoadGame(game string) {
-	f, err := os.OpenFile(game, os.O_RDONLY, 0777)
+	f, err := os.Open(game)
 	util.HandleError(err)
 	fStat, err := f.Stat()
 	b := make([]byte, 1)
 	for i := 0; int64(i) < fStat.Size(); i++ {
-		data, err := f.Read(b)
+		_, err := f.Read(b)
 		util.HandleError(err)
-		cpu.memory[i+512] = uint8(data)
+
+		cpu.memory[i+512] = uint8(b[0])
 	}
 	defer f.Close()
 
@@ -87,14 +86,15 @@ func (cpu *CPU) LoadGame(game string) {
 
 //EmulateCycle fetch, decode and execute opcode from program
 func (cpu *CPU) EmulateCycle() {
-	cpu.opcode = binary.BigEndian.Uint16(cpu.memory[cpu.pc : cpu.pc+2])
+	//cpu.opcode = binary.BigEndian.Uint16(cpu.memory[cpu.pc : cpu.pc+2])
+	cpu.opcode = uint16(cpu.memory[cpu.pc])<<8 | uint16(cpu.memory[cpu.pc+1])
 
 	switch cpu.opcode & 0xF000 {
 	case 0x0000:
 		switch cpu.opcode & 0x000F {
 		case 0x0000:
 			//clear screen
-			cpu.gfx = make([]uint8, 2048)
+			cpu.Gfx = make([]uint8, 2048)
 			cpu.DrawFlag = true
 			cpu.pc += 2
 			break
@@ -118,96 +118,96 @@ func (cpu *CPU) EmulateCycle() {
 		cpu.pc = cpu.opcode & 0x0FFF
 		break
 	case 0x3000:
-		if cpu.regV[uint8(cpu.opcode&0x0F00)] == uint8(cpu.opcode&0x00FF) {
+		if cpu.regV[(cpu.opcode&0x0F00)>>8] == uint8(cpu.opcode&0x00FF) {
 			cpu.pc += 4
 		} else {
 			cpu.pc += 2
 		}
 		break
 	case 0x4000:
-		if cpu.regV[uint8(cpu.opcode&0x0F00)] != uint8(cpu.opcode&0x00FF) {
+		if cpu.regV[(cpu.opcode&0x0F00)>>8] != uint8(cpu.opcode&0x00FF) {
 			cpu.pc += 4
 		} else {
 			cpu.pc += 2
 		}
 		break
 	case 0x5000:
-		if cpu.regV[uint8(cpu.opcode&0x0F00)] == cpu.regV[uint8(cpu.opcode&0x00F0)] {
+		if cpu.regV[(cpu.opcode&0x0F00)>>8] == cpu.regV[(cpu.opcode&0x00F0)>>4] {
 			cpu.pc += 4
 		} else {
 			cpu.pc += 2
 		}
 		break
 	case 0x6000:
-		cpu.regV[uint8(cpu.opcode&0x0F00)] = uint8(cpu.opcode & 0x00FF)
+		cpu.regV[(cpu.opcode&0x0F00)>>8] = uint8(cpu.opcode & 0x00FF)
 		cpu.pc += 2
 		break
 	case 0x7000:
-		cpu.regV[uint8(cpu.opcode&0x0F00)] += uint8(cpu.opcode & 0x00FF)
+		cpu.regV[(cpu.opcode&0x0F00)>>8] += uint8(cpu.opcode & 0x00FF)
 		cpu.pc += 2
 		break
 	case 0x8000:
 		switch cpu.opcode & 0x000F {
 		case 0x0000:
-			cpu.regV[uint8(cpu.opcode&0x0F00)] = cpu.regV[uint8(cpu.opcode&0x00F0)]
+			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x00F0)>>4]
 			cpu.pc += 2
 			break
 		case 0x0001:
-			cpu.regV[uint8(cpu.opcode&0x0F00)] = cpu.regV[uint8(cpu.opcode&0x0F00)] | cpu.regV[uint8(cpu.opcode&0x00F0)]
+			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x0F00)>>8] | cpu.regV[(cpu.opcode&0x00F0)>>4]
 			cpu.pc += 2
 			break
 		case 0x0002:
-			cpu.regV[uint8(cpu.opcode&0x0F00)] = cpu.regV[uint8(cpu.opcode&0x0F00)] & cpu.regV[uint8(cpu.opcode&0x00F0)]
+			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x0F00)>>8] & cpu.regV[(cpu.opcode&0x00F0)>>4]
 			cpu.pc += 2
 			break
 		case 0x0003:
-			cpu.regV[uint8(cpu.opcode&0x0F00)] = cpu.regV[uint8(cpu.opcode&0x0F00)] ^ cpu.regV[uint8(cpu.opcode&0x00F0)]
+			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x0F00)>>8] ^ cpu.regV[(cpu.opcode&0x00F0)>>4]
 			cpu.pc += 2
 			break
 		case 0x0004:
-			if (uint16(cpu.regV[uint8(cpu.opcode&0x0F00)]) + uint16(cpu.regV[uint8(cpu.opcode&0x00F0)])) > 255 {
+			if (uint16(cpu.regV[(cpu.opcode&0x0F00)>>8]) + uint16(cpu.regV[(cpu.opcode&0x00F0)>>4])) > 255 {
 				cpu.regV[0xF] = 1
 			} else {
 				cpu.regV[0xF] = 0
 			}
-			cpu.regV[uint8(cpu.opcode&0x0F00)] += cpu.regV[uint8(cpu.opcode&0x00F0)]
+			cpu.regV[(cpu.opcode&0x0F00)>>8] += cpu.regV[(cpu.opcode&0x00F0)>>4]
 			cpu.pc += 2
 			break
 		case 0x0005:
-			if cpu.regV[uint8(cpu.opcode&0x0F00)] >= cpu.regV[uint8(cpu.opcode&0x00F0)] {
+			if cpu.regV[(cpu.opcode&0x0F00)>>8] >= cpu.regV[(cpu.opcode&0x00F0)>>4] {
 				cpu.regV[0xF] = 1
 			} else {
 				cpu.regV[0xF] = 0
 			}
-			cpu.regV[uint8(cpu.opcode&0x0F00)] -= cpu.regV[uint8(cpu.opcode&0x00F0)]
+			cpu.regV[(cpu.opcode&0x0F00)>>8] -= cpu.regV[(cpu.opcode&0x00F0)>>4]
 			cpu.pc += 2
 			break
 		case 0x0006:
-			cpu.regV[0xF] = cpu.regV[uint8(cpu.opcode&0x00F0)] & 1
-			cpu.regV[uint8(cpu.opcode&0x00F0)] = cpu.regV[uint8(cpu.opcode&0x00F0)] >> 1
-			cpu.regV[uint8(cpu.opcode&0x0F00)] = cpu.regV[uint8(cpu.opcode&0x00F0)]
+			cpu.regV[0xF] = cpu.regV[(cpu.opcode&0x00F0)>>4] & 1
+			cpu.regV[(cpu.opcode&0x00F0)>>4] = cpu.regV[(cpu.opcode&0x00F0)>>4] >> 1
+			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x00F0)>>4]
 			cpu.pc += 2
 			break
 		case 0x0007:
-			if cpu.regV[uint8(cpu.opcode&0x00F0)] >= cpu.regV[uint8(cpu.opcode&0x0F00)] {
+			if cpu.regV[(cpu.opcode&0x00F0)>>4] >= cpu.regV[(cpu.opcode&0x0F00)>>8] {
 				cpu.regV[0xF] = 1
 			} else {
 				cpu.regV[0xF] = 0
 			}
-			cpu.regV[uint8(cpu.opcode&0x0F00)] = cpu.regV[uint8(cpu.opcode&0x00F0)] - cpu.regV[uint8(cpu.opcode&0x0F00)]
+			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x00F0)>>4] - cpu.regV[(cpu.opcode&0x0F00)>>8]
 			cpu.pc += 2
 			break
 		case 0x000E:
-			cpu.regV[0xF] = cpu.regV[uint8(cpu.opcode&0x00F0)] & 128
-			cpu.regV[uint8(cpu.opcode&0x00F0)] = cpu.regV[uint8(cpu.opcode&0x00F0)] << 1
-			cpu.regV[uint8(cpu.opcode&0x0F00)] = cpu.regV[uint8(cpu.opcode&0x00F0)]
+			cpu.regV[0xF] = cpu.regV[(cpu.opcode&0x00F0)>>4] & 128
+			cpu.regV[(cpu.opcode&0x00F0)>>4] = cpu.regV[(cpu.opcode&0x00F0)>>4] << 1
+			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x00F0)>>4]
 			cpu.pc += 2
 			break
 		default:
 			fmt.Printf("Unknown opcode [0x8000]: 0x%X\n", cpu.opcode)
 		}
 	case 0x9000:
-		if cpu.regV[uint8(cpu.opcode&0x0F00)] != cpu.regV[uint8(cpu.opcode&0x00F0)] {
+		if cpu.regV[(cpu.opcode&0x0F00)>>8] != cpu.regV[(cpu.opcode&0x00F0)>>4] {
 			cpu.pc += 4
 		} else {
 			cpu.pc += 2
@@ -226,8 +226,8 @@ func (cpu *CPU) EmulateCycle() {
 		cpu.pc += 2
 		break
 	case 0xD000:
-		var x uint16 = uint16(cpu.regV[uint8(cpu.opcode&0x0F00)])
-		var y uint16 = uint16(cpu.regV[uint8(cpu.opcode&0x00F0)])
+		var x uint16 = uint16(cpu.regV[(cpu.opcode&0x0F00)>>8])
+		var y uint16 = uint16(cpu.regV[(cpu.opcode&0x00F0)>>4])
 		var height uint16 = cpu.opcode & 0x000F
 		var pixel uint16
 		var yline uint16
@@ -237,10 +237,10 @@ func (cpu *CPU) EmulateCycle() {
 			pixel = uint16(cpu.memory[cpu.regI+yline])
 			for xline = 0; xline < 8; xline++ {
 				if pixel&(0x80>>xline) != 0 {
-					if cpu.gfx[x+xline+((y+yline)*64)] == 1 {
+					if cpu.Gfx[x+xline+((y+yline)*64)] == 1 {
 						cpu.regV[0xF] = 1
 					}
-					cpu.gfx[x+xline+((y+yline)*64)] ^= 1
+					cpu.Gfx[x+xline+((y+yline)*64)] ^= 1
 				}
 			}
 		}
@@ -250,14 +250,14 @@ func (cpu *CPU) EmulateCycle() {
 	case 0xE000:
 		switch cpu.opcode & 0x00FF {
 		case 0x009E:
-			if cpu.Key[cpu.regV[uint8(cpu.opcode&0x0F00)]] != 0 {
+			if cpu.Key[cpu.regV[(cpu.opcode&0x0F00)>>8]] != 0 {
 				cpu.pc += 4
 			} else {
 				cpu.pc += 2
 			}
 			break
 		case 0x00A1:
-			if cpu.Key[cpu.regV[uint8(cpu.opcode&0x0F00)]] == 0 {
+			if cpu.Key[cpu.regV[(cpu.opcode&0x0F00)>>8]] == 0 {
 				cpu.pc += 4
 			} else {
 				cpu.pc += 2
@@ -269,14 +269,14 @@ func (cpu *CPU) EmulateCycle() {
 	case 0xF000:
 		switch cpu.opcode & 0x00FF {
 		case 0x0007:
-			cpu.regV[uint8(cpu.opcode&0x0F00)] = cpu.delayTimer
+			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.delayTimer
 			cpu.pc += 2
 			break
 		case 0x000A:
 			KeyPress := false
 			for i := 0; i < 16; i++ {
 				if cpu.Key[i] != 0 {
-					cpu.regV[uint8(cpu.opcode&0x0F00)] = uint8(i)
+					cpu.regV[(cpu.opcode&0x0F00)>>8] = uint8(i)
 					KeyPress = true
 				}
 			}
@@ -286,41 +286,41 @@ func (cpu *CPU) EmulateCycle() {
 
 			break
 		case 0x0015:
-			cpu.delayTimer = cpu.regV[uint8(cpu.opcode&0x0F00)]
+			cpu.delayTimer = cpu.regV[(cpu.opcode&0x0F00)>>8]
 			cpu.pc += 2
 			break
 		case 0x0018:
-			cpu.soundTimer = cpu.regV[uint8(cpu.opcode&0x0F00)]
+			cpu.soundTimer = cpu.regV[(cpu.opcode&0x0F00)>>8]
 			cpu.pc += 2
 			break
 		case 0x001E:
-			cpu.regI += uint16(cpu.regV[uint8(cpu.opcode&0x0F00)])
+			cpu.regI += uint16(cpu.regV[(cpu.opcode&0x0F00)>>8])
 			cpu.pc += 2
 			break
 		case 0x0029:
-			cpu.regI = uint16(cpu.regV[uint8(cpu.opcode&0x0F00)] * 0x05)
+			cpu.regI = uint16(cpu.regV[(cpu.opcode&0x0F00)>>8] * 0x05)
 			cpu.pc += 2
 			break
 		case 0x0033:
-			cpu.memory[cpu.regI] = cpu.regV[uint8(cpu.opcode&0x0F00)] / 100
-			cpu.memory[cpu.regI+1] = (cpu.regV[uint8(cpu.opcode&0x0F00)] / 10) % 10
-			cpu.memory[cpu.regI+2] = (cpu.regV[uint8(cpu.opcode&0x0F00)] % 100) % 10
+			cpu.memory[cpu.regI] = cpu.regV[(cpu.opcode&0x0F00)>>8] / 100
+			cpu.memory[cpu.regI+1] = (cpu.regV[(cpu.opcode&0x0F00)>>8] / 10) % 10
+			cpu.memory[cpu.regI+2] = (cpu.regV[(cpu.opcode&0x0F00)>>8] % 100) % 10
 			cpu.pc += 2
 			break
 		case 0x0055:
-			var i uint8
-			for i = 0; i <= uint8(cpu.opcode&0x0F00); i++ {
+			var i uint16
+			for i = 0; i <= ((cpu.opcode & 0x0F00) >> 8); i++ {
 				cpu.memory[cpu.regI+uint16(i)] = cpu.regV[i]
 			}
-			cpu.regI = uint16(uint8(cpu.opcode&0x0F00) + 1)
+			cpu.regI = uint16((cpu.opcode&0x0F00)>>8 + 1)
 			cpu.pc += 2
 			break
 		case 0x0065:
-			var i uint8
-			for i = 0; i <= uint8(cpu.opcode&0x0F00); i++ {
+			var i uint16
+			for i = 0; i <= (cpu.opcode&0x0F00)>>8; i++ {
 				cpu.regV[i] = cpu.memory[cpu.regI+uint16(i)]
 			}
-			cpu.regI = uint16(uint8(cpu.opcode&0x0F00) + 1)
+			cpu.regI = uint16((cpu.opcode&0x0F00)>>8 + 1)
 			cpu.pc += 2
 			break
 		default:
