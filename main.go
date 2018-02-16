@@ -11,16 +11,21 @@ import (
 var chip8 = cpu.CPU{}
 var displayWidth = 640
 var displayHeight = 320
+var modifier = 10
 
 func initWindow() {
+	gl.Init()
+	glut.InitDisplayMode(glut.DOUBLE | glut.RGBA)
 	glut.InitWindowSize(displayWidth, displayHeight)
 	glut.InitWindowPosition(320, 320)
 	glut.CreateWindow("chip8")
+	glut.ReshapeFunc(reshapeWindow)
 	glut.DisplayFunc(display)
 	glut.IdleFunc(display)
 	glut.KeyboardFunc(keyboardDown)
 	glut.KeyboardUpFunc(keyboardUp)
-	gl.Init()
+	glut.MainLoop()
+
 }
 func updateQuads() {
 	for y := 0; y < 32; y++ {
@@ -36,14 +41,10 @@ func updateQuads() {
 }
 func drawPixel(x int, y int) {
 	gl.Begin(gl.QUADS)
-	gl.TexCoord2d(0.0, 0.0)
-	gl.Vertex2d(0.0, 0.0)
-	gl.TexCoord2d(1.0, 0.0)
-	gl.Vertex2d(float64(displayWidth), 0.0)
-	gl.TexCoord2d(1.0, 1.0)
-	gl.Vertex2d(float64(displayWidth), float64(displayHeight))
-	gl.TexCoord2d(0.0, 1.0)
-	gl.Vertex2d(0.0, float64(displayHeight))
+	gl.Vertex3f(float32(x*modifier), float32(y*modifier), 0.0)
+	gl.Vertex3f(float32(x*modifier), float32((y*modifier)+modifier), 0.0)
+	gl.Vertex3f(float32((x*modifier)+modifier), float32((y*modifier)+modifier), 0.0)
+	gl.Vertex3f(float32((x*modifier)+modifier), float32(y*modifier), 0.0)
 	gl.End()
 }
 func display() {
@@ -167,6 +168,18 @@ func keyboardUp(key uint8, x int, y int) {
 		break
 	}
 }
+func reshapeWindow(w int, h int) {
+	gl.ClearColor(0.0, 0.0, 0.5, 0.0)
+	gl.MatrixMode(gl.PROJECTION)
+	gl.LoadIdentity()
+	gl.Ortho(0.0, float64(w), float64(h), 0.0, -1.0, 1.0)
+	gl.MatrixMode(gl.MODELVIEW)
+	gl.Viewport(0, 0, int32(w), int32(h))
+
+	// Resize quad
+	displayWidth = w
+	displayHeight = h
+}
 
 func main() {
 	args := os.Args[1:]
@@ -177,9 +190,7 @@ func main() {
 
 	chip8.Initialize()
 	chip8.LoadGame(game)
-	glut.InitDisplayMode(glut.DOUBLE | glut.RGB)
 	initWindow()
-	glut.MainLoop()
 
 	return
 }
