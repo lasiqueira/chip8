@@ -183,9 +183,15 @@ func (cpu *CPU) EmulateCycle() {
 			cpu.pc += 2
 			break
 		case 0x0006:
-			cpu.regV[0xF] = cpu.regV[(cpu.opcode&0x00F0)>>4] & 1
-			cpu.regV[(cpu.opcode&0x00F0)>>4] = cpu.regV[(cpu.opcode&0x00F0)>>4] >> 1
-			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x00F0)>>4]
+			//The commented code bellow is what it actually should do in the documentation
+			//but for some reason it doesn't work. I've checked other codebases and no one
+			//implements the way it should be.
+
+			//cpu.regV[0xF] = cpu.regV[(cpu.opcode&0x0F0)>>4] & 1
+			//cpu.regV[(cpu.opcode&0x00F0)>>4] = cpu.regV[(cpu.opcode&0x00F0)>>4] >> 1
+			//cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x00F0)>>4]
+			cpu.regV[0xF] = cpu.regV[(cpu.opcode&0x0F00)>>8] & 1
+			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x0F00)>>8] >> 1
 			cpu.pc += 2
 			break
 		case 0x0007:
@@ -198,9 +204,15 @@ func (cpu *CPU) EmulateCycle() {
 			cpu.pc += 2
 			break
 		case 0x000E:
-			cpu.regV[0xF] = cpu.regV[(cpu.opcode&0x00F0)>>4] & 128
-			cpu.regV[(cpu.opcode&0x00F0)>>4] = cpu.regV[(cpu.opcode&0x00F0)>>4] << 1
-			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x00F0)>>4]
+			//The commented code bellow is what it actually should do in the documentation
+			//but for some reason it doesn't work. I've checked other codebases and no one
+			//implements the way it should be.
+
+			//cpu.regV[0xF] = cpu.regV[(cpu.opcode&0x00F0)>>4] >> 7
+			//cpu.regV[(cpu.opcode&0x00F0)>>4] = cpu.regV[(cpu.opcode&0x00F0)>>4] << 1
+			//cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x00F0)>>4]
+			cpu.regV[0xF] = cpu.regV[(cpu.opcode&0x0F00)>>8] >> 7
+			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x0F00)>>8] << 1
 			cpu.pc += 2
 			break
 		default:
@@ -226,9 +238,9 @@ func (cpu *CPU) EmulateCycle() {
 		cpu.pc += 2
 		break
 	case 0xD000:
-		var x uint16 = uint16(cpu.regV[(cpu.opcode&0x0F00)>>8])
-		var y uint16 = uint16(cpu.regV[(cpu.opcode&0x00F0)>>4])
-		var height uint16 = cpu.opcode & 0x000F
+		x := uint16(cpu.regV[(cpu.opcode&0x0F00)>>8])
+		y := uint16(cpu.regV[(cpu.opcode&0x00F0)>>4])
+		height := cpu.opcode & 0x000F
 		var pixel uint16
 		var yline uint16
 		var xline uint16
@@ -310,17 +322,17 @@ func (cpu *CPU) EmulateCycle() {
 		case 0x0055:
 			var i uint16
 			for i = 0; i <= ((cpu.opcode & 0x0F00) >> 8); i++ {
-				cpu.memory[cpu.regI+uint16(i)] = cpu.regV[i]
+				cpu.memory[cpu.regI+i] = cpu.regV[i]
 			}
-			cpu.regI = uint16((cpu.opcode&0x0F00)>>8 + 1)
+			cpu.regI += uint16(((cpu.opcode & 0x0F00) >> 8) + 1)
 			cpu.pc += 2
 			break
 		case 0x0065:
 			var i uint16
 			for i = 0; i <= (cpu.opcode&0x0F00)>>8; i++ {
-				cpu.regV[i] = cpu.memory[cpu.regI+uint16(i)]
+				cpu.regV[i] = cpu.memory[cpu.regI+i]
 			}
-			cpu.regI = uint16((cpu.opcode&0x0F00)>>8 + 1)
+			cpu.regI += uint16(((cpu.opcode & 0x0F00) >> 8) + 1)
 			cpu.pc += 2
 			break
 		default:
