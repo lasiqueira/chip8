@@ -100,8 +100,8 @@ func (cpu *CPU) EmulateCycle() {
 			break
 		case 0x000E:
 			//return from subroutine
-			cpu.pc = cpu.stack[cpu.sp]
 			cpu.sp--
+			cpu.pc = cpu.stack[cpu.sp]
 			cpu.pc += 2
 			break
 		default:
