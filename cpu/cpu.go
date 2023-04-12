@@ -7,12 +7,12 @@ import (
 
 	"math/rand"
 
-	"github.com/lasiqueira/chip8/util"
+	"chip8/util"
 
 	"time"
 )
 
-//CPU struct holds the cpu state during emulation
+// CPU struct holds the cpu state during emulation
 type CPU struct {
 	opcode     uint16
 	memory     []uint8
@@ -28,7 +28,7 @@ type CPU struct {
 	DrawFlag   bool
 }
 
-//Initialize sets up the initial state of the CPU
+// Initialize sets up the initial state of the CPU
 func (cpu *CPU) Initialize() {
 	font := [80]uint8{
 		0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -68,7 +68,7 @@ func (cpu *CPU) Initialize() {
 	cpu.DrawFlag = true
 }
 
-//LoadGame loads the game into memory and reads it
+// LoadGame loads the game into memory and reads it
 func (cpu *CPU) LoadGame(game string) {
 	f, err := os.Open(game)
 	util.HandleError(err)
@@ -84,7 +84,7 @@ func (cpu *CPU) LoadGame(game string) {
 
 }
 
-//EmulateCycle fetch, decode and execute opcode from program
+// EmulateCycle fetch, decode and execute opcode from program
 func (cpu *CPU) EmulateCycle() {
 	//cpu.opcode = binary.BigEndian.Uint16(cpu.memory[cpu.pc : cpu.pc+2])
 	cpu.opcode = uint16(cpu.memory[cpu.pc])<<8 | uint16(cpu.memory[cpu.pc+1])

@@ -1,6 +1,4 @@
-github.com/go-gl/gl v0.0.0-20190320180904-bf2b1f2f34d7 h1:SCYMcCJ89LjRGwEa0tRluNRiMjZHalQZrVrvTbPh+qw=
-github.com/go-gl/gl v0.0.0-20190320180904-bf2b1f2f34d7/go.mod h1:482civXOzJJCPzJ4ZOX/pwvXBWSnzD4OKMdH4ClKGbk=
-github.com/lasiqueira/chip8 v0.0.0-20180219161630-0c151f15f173 h1:rinSCUDXbZH1a9xtkyiabzx3MMa2ouK3GNPmSHpFGC4=
-github.com/lasiqueira/chip8 v0.0.0-20180219161630-0c151f15f173/go.mod h1:yteRHSwIoX51S5WHcZWv5hos2VuzJB/ZSiITxwTUrvo=
-github.com/rhencke/glut v0.0.0-20160603183654-96ee572308d5 h1:49pYipElcHwvBDr1M28fjv2lcyhVuLxZtbAc98oN708=
-github.com/rhencke/glut v0.0.0-20160603183654-96ee572308d5/go.mod h1:Wy+kKKvSayKNGwHBocsWf9NmdozJYlnSI7IbhhJbsNo=
+github.com/go-gl/gl v0.0.0-20211210172815-726fda9656d6 h1:zDw5v7qm4yH7N8C8uWd+8Ii9rROdgWxQuGoJ9WDXxfk=
+github.com/go-gl/gl v0.0.0-20211210172815-726fda9656d6/go.mod h1:9YTyiznxEY1fVinfM7RvRcjRHbw2xLBJ3AAGIT0I4Nw=
+github.com/vbsw/glut v0.1.0 h1:9lq4KVNTFVnonGW919+Cd0pL8xnu7vLWRflbLLeG1UM=
+github.com/vbsw/glut v0.1.0/go.mod h1:ES5j+84UfYeYKwOksVAooYYc3pDTp8GXYH9/znwuxK0=

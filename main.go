@@ -3,9 +3,10 @@ package main
 import (
 	"os"
 
+	"chip8/cpu"
+
 	"github.com/go-gl/gl/v2.1/gl"
-	"github.com/lasiqueira/chip8/cpu"
-	"github.com/rhencke/glut"
+	"github.com/vbsw/glut"
 )
 
 var chip8 = cpu.CPU{}
@@ -15,6 +16,7 @@ var modifier = 10
 
 func initWindow() {
 	gl.Init()
+	glut.Init()
 	glut.InitDisplayMode(glut.DOUBLE | glut.RGBA)
 	glut.InitWindowSize(displayWidth, displayHeight)
 	glut.InitWindowPosition(320, 320)
