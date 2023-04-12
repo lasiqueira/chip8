@@ -147,39 +147,40 @@ func (cpu *CPU) EmulateCycle() {
 		cpu.pc += 2
 		break
 	case 0x8000:
+		tempX := cpu.regV[(cpu.opcode&0x0F00)>>8]
 		switch cpu.opcode & 0x000F {
 		case 0x0000:
 			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x00F0)>>4]
 			cpu.pc += 2
 			break
 		case 0x0001:
-			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x0F00)>>8] | cpu.regV[(cpu.opcode&0x00F0)>>4]
+			cpu.regV[(cpu.opcode&0x0F00)>>8] = tempX | cpu.regV[(cpu.opcode&0x00F0)>>4]
 			cpu.pc += 2
 			break
 		case 0x0002:
-			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x0F00)>>8] & cpu.regV[(cpu.opcode&0x00F0)>>4]
+			cpu.regV[(cpu.opcode&0x0F00)>>8] = tempX & cpu.regV[(cpu.opcode&0x00F0)>>4]
 			cpu.pc += 2
 			break
 		case 0x0003:
-			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x0F00)>>8] ^ cpu.regV[(cpu.opcode&0x00F0)>>4]
+			cpu.regV[(cpu.opcode&0x0F00)>>8] = tempX ^ cpu.regV[(cpu.opcode&0x00F0)>>4]
 			cpu.pc += 2
 			break
 		case 0x0004:
-			if (uint16(cpu.regV[(cpu.opcode&0x0F00)>>8]) + uint16(cpu.regV[(cpu.opcode&0x00F0)>>4])) > 255 {
+			cpu.regV[(cpu.opcode&0x0F00)>>8] += cpu.regV[(cpu.opcode&0x00F0)>>4]
+			if (uint16(tempX) + uint16(cpu.regV[(cpu.opcode&0x00F0)>>4])) > 255 {
 				cpu.regV[0xF] = 1
 			} else {
 				cpu.regV[0xF] = 0
 			}
-			cpu.regV[(cpu.opcode&0x0F00)>>8] += cpu.regV[(cpu.opcode&0x00F0)>>4]
 			cpu.pc += 2
 			break
 		case 0x0005:
-			if cpu.regV[(cpu.opcode&0x0F00)>>8] >= cpu.regV[(cpu.opcode&0x00F0)>>4] {
+			cpu.regV[(cpu.opcode&0x0F00)>>8] -= cpu.regV[(cpu.opcode&0x00F0)>>4]
+			if tempX >= cpu.regV[(cpu.opcode&0x00F0)>>4] {
 				cpu.regV[0xF] = 1
 			} else {
 				cpu.regV[0xF] = 0
 			}
-			cpu.regV[(cpu.opcode&0x0F00)>>8] -= cpu.regV[(cpu.opcode&0x00F0)>>4]
 			cpu.pc += 2
 			break
 		case 0x0006:
@@ -190,17 +191,18 @@ func (cpu *CPU) EmulateCycle() {
 			//cpu.regV[0xF] = cpu.regV[(cpu.opcode&0x0F0)>>4] & 1
 			//cpu.regV[(cpu.opcode&0x00F0)>>4] = cpu.regV[(cpu.opcode&0x00F0)>>4] >> 1
 			//cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x00F0)>>4]
-			cpu.regV[0xF] = cpu.regV[(cpu.opcode&0x0F00)>>8] & 1
-			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x0F00)>>8] >> 1
+			cpu.regV[(cpu.opcode&0x0F00)>>8] = tempX >> 1
+			cpu.regV[0xF] = tempX & 1
+
 			cpu.pc += 2
 			break
 		case 0x0007:
-			if cpu.regV[(cpu.opcode&0x00F0)>>4] >= cpu.regV[(cpu.opcode&0x0F00)>>8] {
+			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x00F0)>>4] - tempX
+			if cpu.regV[(cpu.opcode&0x00F0)>>4] >= tempX {
 				cpu.regV[0xF] = 1
 			} else {
 				cpu.regV[0xF] = 0
 			}
-			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x00F0)>>4] - cpu.regV[(cpu.opcode&0x0F00)>>8]
 			cpu.pc += 2
 			break
 		case 0x000E:
@@ -211,8 +213,9 @@ func (cpu *CPU) EmulateCycle() {
 			//cpu.regV[0xF] = cpu.regV[(cpu.opcode&0x00F0)>>4] >> 7
 			//cpu.regV[(cpu.opcode&0x00F0)>>4] = cpu.regV[(cpu.opcode&0x00F0)>>4] << 1
 			//cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x00F0)>>4]
-			cpu.regV[0xF] = cpu.regV[(cpu.opcode&0x0F00)>>8] >> 7
+
 			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x0F00)>>8] << 1
+			cpu.regV[0xF] = tempX >> 7
 			cpu.pc += 2
 			break
 		default:
