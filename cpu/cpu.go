@@ -252,10 +252,11 @@ func (cpu *CPU) EmulateCycle() {
 			pixel = uint16(cpu.memory[cpu.regI+yline])
 			for xline = 0; xline < 8; xline++ {
 				if pixel&(0x80>>xline) != 0 {
-					if cpu.Gfx[x+xline+((y+yline)*64)] == 1 {
+					gfxIndex := (int(x)+int(xline))%64 + (((int(y) + int(yline)) % 32) * 64)
+					if cpu.Gfx[gfxIndex] == 1 {
 						cpu.regV[0xF] = 1
 					}
-					cpu.Gfx[x+xline+((y+yline)*64)] ^= 1
+					cpu.Gfx[gfxIndex] ^= 1
 				}
 			}
 		}
