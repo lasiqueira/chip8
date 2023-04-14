@@ -236,8 +236,8 @@ func (cpu *CPU) EmulateCycle() {
 		cpu.pc = cpu.opcode&0x0FFF + uint16(cpu.regV[0])
 		break
 	case 0xC000:
-		rand.Seed(time.Now().UTC().UnixNano())
-		cpu.regV[cpu.opcode&0x0f00] = uint8(rand.Intn(255)) & 0x00FF
+		r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
+		cpu.regV[(cpu.opcode&0x0F00)>>8] = uint8(r.Intn(255)) & 0x00FF
 		cpu.pc += 2
 		break
 	case 0xD000:
@@ -288,14 +288,14 @@ func (cpu *CPU) EmulateCycle() {
 			cpu.pc += 2
 			break
 		case 0x000A:
-			KeyPress := false
+			keyPress := false
 			for i := 0; i < 16; i++ {
 				if cpu.Key[i] != 0 {
 					cpu.regV[(cpu.opcode&0x0F00)>>8] = uint8(i)
-					KeyPress = true
+					keyPress = true
 				}
 			}
-			if KeyPress {
+			if keyPress {
 				cpu.pc += 2
 			}
 
