@@ -73,6 +73,7 @@ func (cpu *CPU) LoadGame(game string) {
 	f, err := os.Open(game)
 	util.HandleError(err)
 	fStat, err := f.Stat()
+	util.HandleError(err)
 	b := make([]byte, 1)
 	for i := 0; int64(i) < fStat.Size(); i++ {
 		_, err := f.Read(b)
@@ -84,267 +85,54 @@ func (cpu *CPU) LoadGame(game string) {
 
 }
 
+// lookup table
+var opcodes = map[uint16]func(*CPU){
+	0x0000: (*CPU).execute00E0,
+	0x000E: (*CPU).execute00EE,
+	0x1000: (*CPU).execute1NNN,
+	0x2000: (*CPU).execute2NNN,
+	0x3000: (*CPU).execute3XNN,
+	0x4000: (*CPU).execute4XNN,
+	0x5000: (*CPU).execute5XY0,
+	0x6000: (*CPU).execute6XNN,
+	0x7000: (*CPU).execute7XNN,
+	0x8000: (*CPU).execute8XY0,
+	0x8001: (*CPU).execute8XY1,
+	0x8002: (*CPU).execute8XY2,
+	0x8003: (*CPU).execute8XY3,
+	0x8004: (*CPU).execute8XY4,
+	0x8005: (*CPU).execute8XY5,
+	0x8006: (*CPU).execute8XY6,
+	0x8007: (*CPU).execute8XY7,
+	0x800E: (*CPU).execute8XYE,
+	0x9000: (*CPU).execute9XY0,
+	0xA000: (*CPU).executeANNN,
+	0xB000: (*CPU).executeBNNN,
+	0xC000: (*CPU).executeCXNN,
+	0xD000: (*CPU).executeDXYN,
+	0xE09E: (*CPU).executeEX9E,
+	0xE0A1: (*CPU).executeEXA1,
+	0xF007: (*CPU).executeFX07,
+	0xF00A: (*CPU).executeFX0A,
+	0xF015: (*CPU).executeFX15,
+	0xF018: (*CPU).executeFX18,
+	0xF01E: (*CPU).executeFX1E,
+	0xF029: (*CPU).executeFX29,
+	0xF033: (*CPU).executeFX33,
+	0xF055: (*CPU).executeFX55,
+	0xF065: (*CPU).executeFX65,
+}
+
 // EmulateCycle fetch, decode and execute opcode from program
 func (cpu *CPU) EmulateCycle() {
-	//cpu.opcode = binary.BigEndian.Uint16(cpu.memory[cpu.pc : cpu.pc+2])
 	cpu.opcode = uint16(cpu.memory[cpu.pc])<<8 | uint16(cpu.memory[cpu.pc+1])
-
-	switch cpu.opcode & 0xF000 {
-	case 0x0000:
-		switch cpu.opcode & 0x000F {
-		case 0x0000:
-			//clear screen
-			cpu.Gfx = make([]uint8, 2048)
-			cpu.DrawFlag = true
-			cpu.pc += 2
-			break
-		case 0x000E:
-			//return from subroutine
-			cpu.sp--
-			cpu.pc = cpu.stack[cpu.sp]
-			cpu.pc += 2
-			break
-		default:
-			fmt.Printf("Unknown opcode [0x0000]: 0x%X\n", cpu.opcode)
-		}
-	case 0x1000:
-		//jumps to
-		cpu.pc = cpu.opcode & 0x0FFF
-		break
-	case 0x2000:
-		//calls subroutine
-		cpu.stack[cpu.sp] = cpu.pc
-		cpu.sp++
-		cpu.pc = cpu.opcode & 0x0FFF
-		break
-	case 0x3000:
-		if cpu.regV[(cpu.opcode&0x0F00)>>8] == uint8(cpu.opcode&0x00FF) {
-			cpu.pc += 4
-		} else {
-			cpu.pc += 2
-		}
-		break
-	case 0x4000:
-		if cpu.regV[(cpu.opcode&0x0F00)>>8] != uint8(cpu.opcode&0x00FF) {
-			cpu.pc += 4
-		} else {
-			cpu.pc += 2
-		}
-		break
-	case 0x5000:
-		if cpu.regV[(cpu.opcode&0x0F00)>>8] == cpu.regV[(cpu.opcode&0x00F0)>>4] {
-			cpu.pc += 4
-		} else {
-			cpu.pc += 2
-		}
-		break
-	case 0x6000:
-		cpu.regV[(cpu.opcode&0x0F00)>>8] = uint8(cpu.opcode & 0x00FF)
+	opcode := getOpcode(cpu.opcode)
+	if opcodeFunc, found := opcodes[opcode]; found {
+		opcodeFunc(cpu)
+	} else {
+		// Invalid opcode
+		fmt.Printf("Unknown opcode: 0x%X\n", opcode)
 		cpu.pc += 2
-		break
-	case 0x7000:
-		cpu.regV[(cpu.opcode&0x0F00)>>8] += uint8(cpu.opcode & 0x00FF)
-		cpu.pc += 2
-		break
-	case 0x8000:
-		tempX := cpu.regV[(cpu.opcode&0x0F00)>>8]
-		switch cpu.opcode & 0x000F {
-		case 0x0000:
-			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x00F0)>>4]
-			cpu.pc += 2
-			break
-		case 0x0001:
-			cpu.regV[(cpu.opcode&0x0F00)>>8] = tempX | cpu.regV[(cpu.opcode&0x00F0)>>4]
-			cpu.pc += 2
-			break
-		case 0x0002:
-			cpu.regV[(cpu.opcode&0x0F00)>>8] = tempX & cpu.regV[(cpu.opcode&0x00F0)>>4]
-			cpu.pc += 2
-			break
-		case 0x0003:
-			cpu.regV[(cpu.opcode&0x0F00)>>8] = tempX ^ cpu.regV[(cpu.opcode&0x00F0)>>4]
-			cpu.pc += 2
-			break
-		case 0x0004:
-			cpu.regV[(cpu.opcode&0x0F00)>>8] += cpu.regV[(cpu.opcode&0x00F0)>>4]
-			if (uint16(tempX) + uint16(cpu.regV[(cpu.opcode&0x00F0)>>4])) > 255 {
-				cpu.regV[0xF] = 1
-			} else {
-				cpu.regV[0xF] = 0
-			}
-			cpu.pc += 2
-			break
-		case 0x0005:
-			cpu.regV[(cpu.opcode&0x0F00)>>8] -= cpu.regV[(cpu.opcode&0x00F0)>>4]
-			if tempX >= cpu.regV[(cpu.opcode&0x00F0)>>4] {
-				cpu.regV[0xF] = 1
-			} else {
-				cpu.regV[0xF] = 0
-			}
-			cpu.pc += 2
-			break
-		case 0x0006:
-			//The commented code bellow is what it actually should do in the documentation
-			//but for some reason it doesn't work. I've checked other codebases and no one
-			//implements the way it should be.
-
-			//cpu.regV[0xF] = cpu.regV[(cpu.opcode&0x0F0)>>4] & 1
-			//cpu.regV[(cpu.opcode&0x00F0)>>4] = cpu.regV[(cpu.opcode&0x00F0)>>4] >> 1
-			//cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x00F0)>>4]
-			cpu.regV[(cpu.opcode&0x0F00)>>8] = tempX >> 1
-			cpu.regV[0xF] = tempX & 1
-
-			cpu.pc += 2
-			break
-		case 0x0007:
-			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x00F0)>>4] - tempX
-			if cpu.regV[(cpu.opcode&0x00F0)>>4] >= tempX {
-				cpu.regV[0xF] = 1
-			} else {
-				cpu.regV[0xF] = 0
-			}
-			cpu.pc += 2
-			break
-		case 0x000E:
-			//The commented code bellow is what it actually should do in the documentation
-			//but for some reason it doesn't work. I've checked other codebases and no one
-			//implements the way it should be.
-
-			//cpu.regV[0xF] = cpu.regV[(cpu.opcode&0x00F0)>>4] >> 7
-			//cpu.regV[(cpu.opcode&0x00F0)>>4] = cpu.regV[(cpu.opcode&0x00F0)>>4] << 1
-			//cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x00F0)>>4]
-
-			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x0F00)>>8] << 1
-			cpu.regV[0xF] = tempX >> 7
-			cpu.pc += 2
-			break
-		default:
-			fmt.Printf("Unknown opcode [0x8000]: 0x%X\n", cpu.opcode)
-		}
-	case 0x9000:
-		if cpu.regV[(cpu.opcode&0x0F00)>>8] != cpu.regV[(cpu.opcode&0x00F0)>>4] {
-			cpu.pc += 4
-		} else {
-			cpu.pc += 2
-		}
-		break
-	case 0xA000:
-		cpu.regI = cpu.opcode & 0x0FFF
-		cpu.pc += 2
-		break
-	case 0xB000:
-		cpu.pc = cpu.opcode&0x0FFF + uint16(cpu.regV[0])
-		break
-	case 0xC000:
-		r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
-		cpu.regV[(cpu.opcode&0x0F00)>>8] = uint8(r.Intn(255)) & 0x00FF
-		cpu.pc += 2
-		break
-	case 0xD000:
-		x := uint16(cpu.regV[(cpu.opcode&0x0F00)>>8])
-		y := uint16(cpu.regV[(cpu.opcode&0x00F0)>>4])
-		height := cpu.opcode & 0x000F
-		var pixel uint16
-		var yline uint16
-		var xline uint16
-		cpu.regV[0xF] = 0
-		for yline = 0; yline < height; yline++ {
-			pixel = uint16(cpu.memory[cpu.regI+yline])
-			for xline = 0; xline < 8; xline++ {
-				if pixel&(0x80>>xline) != 0 {
-					gfxIndex := (int(x)+int(xline))%64 + (((int(y) + int(yline)) % 32) * 64)
-					if cpu.Gfx[gfxIndex] == 1 {
-						cpu.regV[0xF] = 1
-					}
-					cpu.Gfx[gfxIndex] ^= 1
-				}
-			}
-		}
-		cpu.DrawFlag = true
-		cpu.pc += 2
-		break
-	case 0xE000:
-		switch cpu.opcode & 0x00FF {
-		case 0x009E:
-			if cpu.Key[cpu.regV[(cpu.opcode&0x0F00)>>8]] != 0 {
-				cpu.pc += 4
-			} else {
-				cpu.pc += 2
-			}
-			break
-		case 0x00A1:
-			if cpu.Key[cpu.regV[(cpu.opcode&0x0F00)>>8]] == 0 {
-				cpu.pc += 4
-			} else {
-				cpu.pc += 2
-			}
-			break
-		default:
-			fmt.Printf("Unknown opcode [0xE000]: 0x%X\n", cpu.opcode)
-		}
-	case 0xF000:
-		switch cpu.opcode & 0x00FF {
-		case 0x0007:
-			cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.delayTimer
-			cpu.pc += 2
-			break
-		case 0x000A:
-			keyPress := false
-			for i := 0; i < 16; i++ {
-				if cpu.Key[i] != 0 {
-					cpu.regV[(cpu.opcode&0x0F00)>>8] = uint8(i)
-					keyPress = true
-				}
-			}
-			if keyPress {
-				cpu.pc += 2
-			}
-
-			break
-		case 0x0015:
-			cpu.delayTimer = cpu.regV[(cpu.opcode&0x0F00)>>8]
-			cpu.pc += 2
-			break
-		case 0x0018:
-			cpu.soundTimer = cpu.regV[(cpu.opcode&0x0F00)>>8]
-			cpu.pc += 2
-			break
-		case 0x001E:
-			cpu.regI += uint16(cpu.regV[(cpu.opcode&0x0F00)>>8])
-			cpu.pc += 2
-			break
-		case 0x0029:
-			cpu.regI = uint16(cpu.regV[(cpu.opcode&0x0F00)>>8] * 0x05)
-			cpu.pc += 2
-			break
-		case 0x0033:
-			cpu.memory[cpu.regI] = cpu.regV[(cpu.opcode&0x0F00)>>8] / 100
-			cpu.memory[cpu.regI+1] = (cpu.regV[(cpu.opcode&0x0F00)>>8] / 10) % 10
-			cpu.memory[cpu.regI+2] = (cpu.regV[(cpu.opcode&0x0F00)>>8] % 100) % 10
-			cpu.pc += 2
-			break
-		case 0x0055:
-			var i uint16
-			for i = 0; i <= ((cpu.opcode & 0x0F00) >> 8); i++ {
-				cpu.memory[cpu.regI+i] = cpu.regV[i]
-			}
-			cpu.regI += uint16(((cpu.opcode & 0x0F00) >> 8) + 1)
-			cpu.pc += 2
-			break
-		case 0x0065:
-			var i uint16
-			for i = 0; i <= (cpu.opcode&0x0F00)>>8; i++ {
-				cpu.regV[i] = cpu.memory[cpu.regI+i]
-			}
-			cpu.regI += uint16(((cpu.opcode & 0x0F00) >> 8) + 1)
-			cpu.pc += 2
-			break
-		default:
-			fmt.Printf("Unknown opcode [0xF000]: 0x%X\n", cpu.opcode)
-		}
-
-	default:
-		fmt.Printf("Unknown opcode: 0x%X\n", cpu.opcode)
 	}
 
 	if cpu.delayTimer > 0 {
@@ -356,4 +144,249 @@ func (cpu *CPU) EmulateCycle() {
 		}
 		cpu.soundTimer--
 	}
+}
+
+// gets the correct mapping for the lookup table
+func getOpcode(opcode uint16) uint16 {
+	prefix := opcode & 0xF000
+	var newOpcode uint16
+	if prefix == 0x0000 {
+		suffix := opcode & 0x000F
+		if suffix == 0x000E {
+			newOpcode = prefix | suffix
+		} else {
+			newOpcode = prefix
+		}
+	} else if prefix == 0x8000 {
+		suffix := opcode & 0x000F
+		newOpcode = prefix | suffix
+	} else if prefix == 0xE000 || prefix == 0xF000 {
+		suffix := opcode & 0x00FF
+		newOpcode = prefix | suffix
+	} else {
+		newOpcode = prefix
+	}
+	return newOpcode
+}
+
+// opcode execution
+func (cpu *CPU) execute00E0() {
+	//clear screen
+	cpu.Gfx = make([]uint8, 2048)
+	cpu.DrawFlag = true
+	cpu.pc += 2
+}
+func (cpu *CPU) execute00EE() {
+	//return from subroutine
+	cpu.sp--
+	cpu.pc = cpu.stack[cpu.sp]
+	cpu.pc += 2
+}
+func (cpu *CPU) execute1NNN() {
+	//jumps to
+	cpu.pc = cpu.opcode & 0x0FFF
+}
+func (cpu *CPU) execute2NNN() {
+	//calls subroutine
+	cpu.stack[cpu.sp] = cpu.pc
+	cpu.sp++
+	cpu.pc = cpu.opcode & 0x0FFF
+}
+func (cpu *CPU) execute3XNN() {
+	if cpu.regV[(cpu.opcode&0x0F00)>>8] == uint8(cpu.opcode&0x00FF) {
+		cpu.pc += 4
+	} else {
+		cpu.pc += 2
+	}
+}
+func (cpu *CPU) execute4XNN() {
+	if cpu.regV[(cpu.opcode&0x0F00)>>8] != uint8(cpu.opcode&0x00FF) {
+		cpu.pc += 4
+	} else {
+		cpu.pc += 2
+	}
+}
+func (cpu *CPU) execute5XY0() {
+	if cpu.regV[(cpu.opcode&0x0F00)>>8] == cpu.regV[(cpu.opcode&0x00F0)>>4] {
+		cpu.pc += 4
+	} else {
+		cpu.pc += 2
+	}
+}
+func (cpu *CPU) execute6XNN() {
+	cpu.regV[(cpu.opcode&0x0F00)>>8] = uint8(cpu.opcode & 0x00FF)
+	cpu.pc += 2
+}
+func (cpu *CPU) execute7XNN() {
+	cpu.regV[(cpu.opcode&0x0F00)>>8] += uint8(cpu.opcode & 0x00FF)
+	cpu.pc += 2
+}
+func (cpu *CPU) execute8XY0() {
+	cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x00F0)>>4]
+	cpu.pc += 2
+
+}
+func (cpu *CPU) execute8XY1() {
+	cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x0F00)>>8] | cpu.regV[(cpu.opcode&0x00F0)>>4]
+	cpu.pc += 2
+}
+func (cpu *CPU) execute8XY2() {
+	cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x0F00)>>8] & cpu.regV[(cpu.opcode&0x00F0)>>4]
+	cpu.pc += 2
+}
+func (cpu *CPU) execute8XY3() {
+	cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x0F00)>>8] ^ cpu.regV[(cpu.opcode&0x00F0)>>4]
+	cpu.pc += 2
+}
+func (cpu *CPU) execute8XY4() {
+	tempX := cpu.regV[(cpu.opcode&0x0F00)>>8]
+	cpu.regV[(cpu.opcode&0x0F00)>>8] += cpu.regV[(cpu.opcode&0x00F0)>>4]
+	if (uint16(tempX) + uint16(cpu.regV[(cpu.opcode&0x00F0)>>4])) > 255 {
+		cpu.regV[0xF] = 1
+	} else {
+		cpu.regV[0xF] = 0
+	}
+	cpu.pc += 2
+}
+func (cpu *CPU) execute8XY5() {
+	tempX := cpu.regV[(cpu.opcode&0x0F00)>>8]
+	cpu.regV[(cpu.opcode&0x0F00)>>8] -= cpu.regV[(cpu.opcode&0x00F0)>>4]
+	if tempX >= cpu.regV[(cpu.opcode&0x00F0)>>4] {
+		cpu.regV[0xF] = 1
+	} else {
+		cpu.regV[0xF] = 0
+	}
+	cpu.pc += 2
+}
+func (cpu *CPU) execute8XY6() {
+	tempX := cpu.regV[(cpu.opcode&0x0F00)>>8]
+	cpu.regV[(cpu.opcode&0x0F00)>>8] = tempX >> 1
+	cpu.regV[0xF] = tempX & 1
+	cpu.pc += 2
+}
+func (cpu *CPU) execute8XY7() {
+	tempX := cpu.regV[(cpu.opcode&0x0F00)>>8]
+	cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x00F0)>>4] - tempX
+	if cpu.regV[(cpu.opcode&0x00F0)>>4] >= tempX {
+		cpu.regV[0xF] = 1
+	} else {
+		cpu.regV[0xF] = 0
+	}
+	cpu.pc += 2
+}
+func (cpu *CPU) execute8XYE() {
+	tempX := cpu.regV[(cpu.opcode&0x0F00)>>8]
+	cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.regV[(cpu.opcode&0x0F00)>>8] << 1
+	cpu.regV[0xF] = tempX >> 7
+	cpu.pc += 2
+}
+func (cpu *CPU) execute9XY0() {
+	if cpu.regV[(cpu.opcode&0x0F00)>>8] != cpu.regV[(cpu.opcode&0x00F0)>>4] {
+		cpu.pc += 4
+	} else {
+		cpu.pc += 2
+	}
+}
+func (cpu *CPU) executeANNN() {
+	cpu.regI = cpu.opcode & 0x0FFF
+	cpu.pc += 2
+}
+func (cpu *CPU) executeBNNN() {
+	cpu.pc = cpu.opcode&0x0FFF + uint16(cpu.regV[0])
+}
+func (cpu *CPU) executeCXNN() {
+	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
+	cpu.regV[(cpu.opcode&0x0F00)>>8] = uint8(r.Intn(255)) & 0x00FF
+	cpu.pc += 2
+}
+func (cpu *CPU) executeDXYN() {
+	x := uint16(cpu.regV[(cpu.opcode&0x0F00)>>8])
+	y := uint16(cpu.regV[(cpu.opcode&0x00F0)>>4])
+	height := cpu.opcode & 0x000F
+	var pixel uint16
+	var yline uint16
+	var xline uint16
+	cpu.regV[0xF] = 0
+	for yline = 0; yline < height; yline++ {
+		pixel = uint16(cpu.memory[cpu.regI+yline])
+		for xline = 0; xline < 8; xline++ {
+			if pixel&(0x80>>xline) != 0 {
+				gfxIndex := (int(x)+int(xline))%64 + (((int(y) + int(yline)) % 32) * 64)
+				if cpu.Gfx[gfxIndex] == 1 {
+					cpu.regV[0xF] = 1
+				}
+				cpu.Gfx[gfxIndex] ^= 1
+			}
+		}
+	}
+	cpu.DrawFlag = true
+	cpu.pc += 2
+}
+func (cpu *CPU) executeEX9E() {
+	if cpu.Key[cpu.regV[(cpu.opcode&0x0F00)>>8]] != 0 {
+		cpu.pc += 4
+	} else {
+		cpu.pc += 2
+	}
+}
+func (cpu *CPU) executeEXA1() {
+	if cpu.Key[cpu.regV[(cpu.opcode&0x0F00)>>8]] == 0 {
+		cpu.pc += 4
+	} else {
+		cpu.pc += 2
+	}
+}
+func (cpu *CPU) executeFX07() {
+	cpu.regV[(cpu.opcode&0x0F00)>>8] = cpu.delayTimer
+	cpu.pc += 2
+}
+func (cpu *CPU) executeFX0A() {
+	keyPress := false
+	for i := 0; i < 16; i++ {
+		if cpu.Key[i] != 0 {
+			cpu.regV[(cpu.opcode&0x0F00)>>8] = uint8(i)
+			keyPress = true
+		}
+	}
+	if keyPress {
+		cpu.pc += 2
+	}
+}
+func (cpu *CPU) executeFX15() {
+	cpu.delayTimer = cpu.regV[(cpu.opcode&0x0F00)>>8]
+	cpu.pc += 2
+}
+func (cpu *CPU) executeFX18() {
+	cpu.soundTimer = cpu.regV[(cpu.opcode&0x0F00)>>8]
+	cpu.pc += 2
+}
+func (cpu *CPU) executeFX1E() {
+	cpu.regI += uint16(cpu.regV[(cpu.opcode&0x0F00)>>8])
+	cpu.pc += 2
+}
+func (cpu *CPU) executeFX29() {
+	cpu.regI = uint16(cpu.regV[(cpu.opcode&0x0F00)>>8] * 0x05)
+	cpu.pc += 2
+}
+func (cpu *CPU) executeFX33() {
+	cpu.memory[cpu.regI] = cpu.regV[(cpu.opcode&0x0F00)>>8] / 100
+	cpu.memory[cpu.regI+1] = (cpu.regV[(cpu.opcode&0x0F00)>>8] / 10) % 10
+	cpu.memory[cpu.regI+2] = (cpu.regV[(cpu.opcode&0x0F00)>>8] % 100) % 10
+	cpu.pc += 2
+}
+func (cpu *CPU) executeFX55() {
+	var i uint16
+	for i = 0; i <= ((cpu.opcode & 0x0F00) >> 8); i++ {
+		cpu.memory[cpu.regI+i] = cpu.regV[i]
+	}
+	cpu.regI += uint16(((cpu.opcode & 0x0F00) >> 8) + 1)
+	cpu.pc += 2
+}
+func (cpu *CPU) executeFX65() {
+	var i uint16
+	for i = 0; i <= (cpu.opcode&0x0F00)>>8; i++ {
+		cpu.regV[i] = cpu.memory[cpu.regI+i]
+	}
+	cpu.regI += uint16(((cpu.opcode & 0x0F00) >> 8) + 1)
+	cpu.pc += 2
 }
